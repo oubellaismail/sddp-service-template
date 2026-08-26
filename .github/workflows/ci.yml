@@ -1,5 +1,9 @@
 # PR CI gate — single image, source at the repo root.
 #
+# Nothing to substitute: the image name is derived at runtime from the repository
+# name (ghcr.io/<owner>/<repo>). Name your repo `sddp-<service>` and everything
+# follows automatically.
+#
 # Whole-repo static jobs (secret scan, SAST) run once; the per-image jobs (SCA,
 # Dockerfile lint, build + image scan + publish) run for this repo's single
 # image. The expensive build + image scan runs only after every static check
@@ -67,7 +71,7 @@ jobs:
       - name: Dependency-Check
         uses: dependency-check/Dependency-Check_Action@75ba02d6183445fe0761d26e836bde58b1560600 # 1.1.0
         with:
-          project: sddp-__service__
+          project: ${{ github.event.repository.name }}
           path: .
           format: HTML
           args: >-
@@ -99,6 +103,9 @@ jobs:
     permissions:
       contents: read
       packages: write # push the scanned digest to the staging registry (GHCR)
+    env:
+      # Image name = ghcr.io/<owner>/<repo-name>, resolved at runtime.
+      IMAGE: ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
@@ -108,11 +115,11 @@ jobs:
           context: . # repo root
           push: false # publication is post-gate (step below)
           load: true # load into the runner's docker daemon so Trivy can scan it
-          tags: sddp-__service__:ci
+          tags: ${{ env.IMAGE }}:ci
       - name: Trivy image scan
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
-          image-ref: sddp-__service__:ci
+          image-ref: ${{ env.IMAGE }}:ci
           severity: HIGH,CRITICAL
           ignore-unfixed: true # don't block on CVEs with no available fix
           exit-code: "1" # findings fail the job and block the gate
@@ -131,12 +138,11 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Push scanned digest to staging
         env:
-          IMAGE: ghcr.io/${{ github.repository_owner }}/sddp-__service__
           # Tag by the real commit (head.sha); on pull_request github.sha is a
           # throwaway test-merge. The digest below is the true content identity.
           TAG: sha-${{ github.event.pull_request.head.sha }}
         run: |
-          docker tag "sddp-__service__:ci" "$IMAGE:$TAG"
+          docker tag "${IMAGE}:ci" "$IMAGE:$TAG"
           docker push "$IMAGE:$TAG"
           DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' "$IMAGE:$TAG")
           echo "**Published to staging (unsigned):**" >> "$GITHUB_STEP_SUMMARY"

@@ -9,9 +9,12 @@ const express = require('express');
 // nosemgrep: javascript.express.security.audit.express-check-csurf-middleware-usage.express-check-csurf-middleware-usage
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
+// The service reports its own name from an env var (set it in the Deployment);
+// falls back to a generic label so the sample runs anywhere with no config.
+const SERVICE_NAME = process.env.SERVICE_NAME || 'sddp-service';
 
 app.get('/', (req, res) => {
-  res.json({ service: 'sddp-__service__', status: 'ok' });
+  res.json({ service: SERVICE_NAME, status: 'ok' });
 });
 
 // Liveness/readiness endpoint for Kubernetes probes.
@@ -21,7 +24,7 @@ app.get('/health', (req, res) => {
 
 const server = app.listen(PORT, '0.0.0.0', () => {
   // eslint-disable-next-line no-console
-  console.log(`sddp-__service__ listening on :${PORT}`);
+  console.log(`${SERVICE_NAME} listening on :${PORT}`);
 });
 
 // Graceful shutdown so Kubernetes rolling updates drain cleanly.

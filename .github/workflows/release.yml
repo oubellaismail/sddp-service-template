@@ -1,5 +1,9 @@
 # Release — sign & promote (runs post-merge). Single image.
 #
+# Nothing to substitute: image name = ghcr.io/<owner>/<repo>, and the config-repo
+# path is derived from the repo name (manifests/<slug>/, slug = repo minus the
+# `sddp-` prefix). Name your repo `sddp-<service>` and it all follows.
+#
 # On merge to main, the exact image built and scanned on the PR is signed and
 # promoted — never rebuilt. Trust acts happen only here, after the full gate:
 # signing earlier would certify trust not yet earned.
@@ -43,9 +47,9 @@ concurrency:
 jobs:
   sign-promote:
     name: Sign & promote to production registry
-    # Skip the template-generation "Initial commit" (nothing built/signed yet) and
-    # the init bot's rename commit; real releases run on merged-PR pushes. The
-    # no-PR guard below is the backstop for any other direct push to main.
+    # Skip the template-generation "Initial commit" (nothing built/signed yet);
+    # real releases run on merged-PR pushes. The no-PR guard below is the backstop
+    # for any other direct push to main.
     if: github.event.head_commit.message != 'Initial commit'
     runs-on: ubuntu-latest
     timeout-minutes: 10 # hard ceiling — a hung verify/copy can't burn the runner
@@ -58,8 +62,9 @@ jobs:
       id-token: write # keyless OIDC signing (Fulcio short-lived cert)
       pull-requests: read # resolve the merge commit's PR -> head SHA
     env:
-      STAGING: ghcr.io/${{ github.repository_owner }}/sddp-__service__
-      PROD: registry.digitalocean.com/sddp-registry/sddp-__service__
+      # Registries + repo, resolved at runtime from the repo name.
+      STAGING: ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}
+      PROD: registry.digitalocean.com/sddp-registry/${{ github.event.repository.name }}
     steps:
       - name: Log in to staging registry (GHCR)
         uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3.4.0
@@ -168,6 +173,7 @@ jobs:
     permissions: {} # zero authority over this repo; all writes go via the App token
     env:
       CONFIG_REPO: ${{ github.repository_owner }}/sddp-app-config
+      IMAGE_NAME: ${{ github.event.repository.name }}
       SOURCE_SHA: ${{ needs.sign-promote.outputs.head_sha }}
       DIGEST: ${{ needs.sign-promote.outputs.digest }}
     steps:
@@ -192,11 +198,14 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -euo pipefail
-          DEPLOY="manifests/__service__/deployment.yaml"
-          [ -f "$DEPLOY" ] || { echo "No manifest for this service in the config repo — nothing to bump." >&2; exit 1; }
+          # slug = image name minus the `sddp-` prefix; the config repo lays
+          # deployments out under manifests/<slug>/.
+          SLUG="${IMAGE_NAME#sddp-}"
+          DEPLOY="manifests/${SLUG}/deployment.yaml"
+          [ -f "$DEPLOY" ] || { echo "No manifest ($DEPLOY) in the config repo — nothing to bump." >&2; exit 1; }
 
           NEWHEX="${DIGEST#sha256:}"
-          sed -i -E "s#(sddp-__service__@sha256:)[0-9a-f]{64}#\1${NEWHEX}#" "$DEPLOY"
+          sed -i -E "s#(${IMAGE_NAME}@sha256:)[0-9a-f]{64}#\1${NEWHEX}#" "$DEPLOY"
 
           if git diff --quiet -- "$DEPLOY"; then
             echo "Config already at ${NEWHEX:0:12} — no PR needed."
@@ -204,7 +213,7 @@ jobs:
             exit 0
           fi
 
-          BRANCH="bump-__service__-${NEWHEX:0:12}"
+          BRANCH="bump-${SLUG}-${NEWHEX:0:12}"
           if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null 2>&1; then
             echo "Branch ${BRANCH} already exists — PR presumably open; skipping."
             exit 0
@@ -213,20 +222,20 @@ jobs:
           git config user.name  "sddp-release[bot]"
           git config user.email "sddp-release[bot]@users.noreply.github.com"
           git switch -c "$BRANCH"
-          git commit -am "chore: bump sddp-__service__ image to ${NEWHEX:0:12}"
+          git commit -am "chore: bump ${IMAGE_NAME} image to ${NEWHEX:0:12}"
           git push origin "$BRANCH"
 
           BODY=$(printf '%s\n' \
-            "Automated digest bump from the sddp-__service__ release pipeline." \
+            "Automated digest bump from the ${IMAGE_NAME} release pipeline." \
             "" \
-            "- **Image:** \`sddp-__service__@${DIGEST}\`" \
+            "- **Image:** \`${IMAGE_NAME}@${DIGEST}\`" \
             "- **Source commit:** \`${SOURCE_SHA}\`" \
             "- **Release run:** ${RUN_URL}" \
             "" \
             "Scanned, keyless-signed and promoted to the production registry by that run; the cluster verifies the signature at admission. Review and merge to deploy via Argo CD.")
 
           gh pr create --repo "$CONFIG_REPO" --base main --head "$BRANCH" \
-            --title "chore: bump sddp-__service__ image to ${NEWHEX:0:12}" \
+            --title "chore: bump ${IMAGE_NAME} image to ${NEWHEX:0:12}" \
             --body "$BODY"
 
-          echo "**Opened config PR** bumping sddp-__service__ to ${NEWHEX:0:12}." >> "$GITHUB_STEP_SUMMARY"
+          echo "**Opened config PR** bumping ${IMAGE_NAME} to ${NEWHEX:0:12}." >> "$GITHUB_STEP_SUMMARY"

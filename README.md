@@ -12,23 +12,23 @@ project config repo. A hardened, non-root, zero-CVE-base Dockerfile ships with i
 
 ---
 
-## 1. Create your service (one click + one auto-step)
+## 1. Create your service (one click, nothing to run)
 
 1. Click **"Use this template" → Create a new repository**.
-2. **Name it `sddp-<your-service>`** (e.g. `sddp-widget`). The initializer derives
-   the service slug from the repo name, so the `sddp-` prefix matters.
-3. On the first commit, the **`Initialize from template`** workflow runs, replaces
-   the `__service__` placeholder throughout (image name, package name, config-bump
-   path, PR text), commits the result, and **deletes itself**. If it doesn't fire
-   automatically, open **Actions → Initialize from template → Run workflow** once.
+2. **Name it `sddp-<your-service>`** (e.g. `sddp-widget`). That's the only knob —
+   the pipeline derives everything from the repo name at runtime:
+   - image → `ghcr.io/<owner>/sddp-<your-service>` (staging) and
+     `…/sddp-registry/sddp-<your-service>` (production),
+   - the config-repo bump path → `manifests/<your-service>/deployment.yaml`.
+   Nothing is hard-coded and there is **no init step to run** — the workflows are
+   already generic, so the CI gate is green on the sample app immediately.
 
-That's it for the service side — the CI gate is green on the sample app, and the
-release pipeline is ready. What's left is the platform wire-up below (done once
-per service, by a platform maintainer).
+That's it for the service side. What's left is the platform wire-up below (done
+once per service, by a platform maintainer).
 
-> **Repo prerequisite for the initializer:** Settings → Actions → General →
-> Workflow permissions must be **"Read and write"** so the init commit can push.
-> Do this *before* adding branch protection (below), so the bot can push directly.
+> **Why `sddp-<service>`?** The `sddp-` prefix is stripped to form the slug used
+> for the `manifests/<slug>/` path, and the full repo name is the image name. Keep
+> the prefix so the two line up.
 
 ---
 

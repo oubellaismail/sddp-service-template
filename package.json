@@ -1,5 +1,5 @@
 {
-  "name": "sddp-__service__",
+  "name": "sddp-service",
   "version": "0.1.0",
   "private": true,
   "description": "SDDP service — generated from sddp-service-template (the paved road).",
