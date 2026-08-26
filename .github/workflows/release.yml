@@ -202,7 +202,19 @@ jobs:
           # deployments out under manifests/<slug>/.
           SLUG="${IMAGE_NAME#sddp-}"
           DEPLOY="manifests/${SLUG}/deployment.yaml"
-          [ -f "$DEPLOY" ] || { echo "No manifest ($DEPLOY) in the config repo — nothing to bump." >&2; exit 1; }
+          # First onboarding: the delivery manifest doesn't exist yet. Don't fail —
+          # the sign+promote already succeeded; surface the digest so a maintainer
+          # can seed manifests/<slug>/ from the onboarding template with it.
+          if [ ! -f "$DEPLOY" ]; then
+            echo "No manifest ($DEPLOY) yet — first onboarding. Seed it with this signed digest:"
+            echo "  ${IMAGE_NAME}@${DIGEST}"
+            {
+              echo "**First release — nothing to bump yet.**"
+              echo "Signed + promoted \`${IMAGE_NAME}@${DIGEST}\`."
+              echo "Create \`${DEPLOY}\` from the onboarding template with this digest to go live."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
 
           NEWHEX="${DIGEST#sha256:}"
           sed -i -E "s#(${IMAGE_NAME}@sha256:)[0-9a-f]{64}#\1${NEWHEX}#" "$DEPLOY"
