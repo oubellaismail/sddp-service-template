@@ -1,0 +1,71 @@
+# One-shot template initializer — runs once in a repo generated from this
+# template, then deletes itself.
+#
+# GitHub's "Use this template" copies every file verbatim, INCLUDING this
+# workflow, but it does NOT substitute anything. This job does the substitution:
+# it derives the service slug from the repo name (expects `sddp-<slug>`), replaces
+# the __service__ placeholder across all files, commits, and removes itself so it
+# never runs again.
+#
+# Triggers on the first push (the template-copy commit) and can also be run
+# manually ("Run workflow") if the auto-run doesn't fire. It is a no-op on the
+# template repo itself (name guard) and on any repo already initialized (the
+# placeholder is gone — grep guard), so re-runs are safe.
+#
+# Requires the repo's Actions to have workflow write permission (Settings →
+# Actions → General → Workflow permissions → "Read and write"). Run this BEFORE
+# adding branch protection, so the bot can push the init commit directly.
+
+name: Initialize from template
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency: init-from-template
+
+jobs:
+  init:
+    # Never rewrite the template itself.
+    if: github.event.repository.name != 'sddp-service-template'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Substitute service name and self-remove
+        env:
+          REPO: ${{ github.event.repository.name }}
+        run: |
+          set -euo pipefail
+
+          # Idempotent: if the placeholder is already gone, this repo is initialized.
+          if ! grep -rIq --exclude-dir=.git '__service__' .; then
+            echo "Already initialized (no __service__ placeholder found) — nothing to do."
+            exit 0
+          fi
+
+          # Slug = repo name minus the leading `sddp-` (repo must be named sddp-<slug>).
+          SLUG="${REPO#sddp-}"
+          if [ "$SLUG" = "$REPO" ]; then
+            echo "Repo name '$REPO' is not of the form sddp-<slug>; using it verbatim as the slug." >&2
+          fi
+          echo "Initializing service slug: $SLUG"
+
+          # Replace the placeholder across every tracked text file.
+          grep -rIl --exclude-dir=.git '__service__' . | while IFS= read -r f; do
+            sed -i "s/__service__/${SLUG}/g" "$f"
+          done
+
+          # Remove this one-shot workflow so it can't run again.
+          git rm -q .github/workflows/init.yml
+
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "chore: initialize service '${SLUG}' from template"
+          git push
+          echo "**Initialized** as \`sddp-${SLUG}\` and removed the init workflow." >> "$GITHUB_STEP_SUMMARY"
