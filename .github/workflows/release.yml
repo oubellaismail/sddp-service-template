@@ -43,6 +43,10 @@ concurrency:
 jobs:
   sign-promote:
     name: Sign & promote to production registry
+    # Skip the template-generation "Initial commit" (nothing built/signed yet) and
+    # the init bot's rename commit; real releases run on merged-PR pushes. The
+    # no-PR guard below is the backstop for any other direct push to main.
+    if: github.event.head_commit.message != 'Initial commit'
     runs-on: ubuntu-latest
     timeout-minutes: 10 # hard ceiling — a hung verify/copy can't burn the runner
     outputs:

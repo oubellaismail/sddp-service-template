@@ -55,13 +55,15 @@ jobs:
           fi
           echo "Initializing service slug: $SLUG"
 
-          # Replace the placeholder across every tracked text file.
+          # Remove this one-shot workflow FIRST — it contains the placeholder too,
+          # so substituting before removing would leave it modified and `git rm`
+          # would refuse it. Deleting up front keeps it out of the loop entirely.
+          rm .github/workflows/init.yml
+
+          # Replace the placeholder across every remaining tracked text file.
           grep -rIl --exclude-dir=.git '__service__' . | while IFS= read -r f; do
             sed -i "s/__service__/${SLUG}/g" "$f"
           done
-
-          # Remove this one-shot workflow so it can't run again.
-          git rm -q .github/workflows/init.yml
 
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
