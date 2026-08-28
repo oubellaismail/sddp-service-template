@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1
+# syntax=docker/dockerfile:1@sha256:ecfaec9ed6d810b56388c508f4121597bfbba70d41a6dfeee4d8cad5f295fc32
 #
 # Multi-stage build on Chainguard's Wolfi Node images — continuously rebuilt to
 # zero known CVEs, minimal (no shell / package managers in the runtime), and
