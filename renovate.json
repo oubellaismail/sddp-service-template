@@ -6,6 +6,7 @@
   ],
   "labels": ["dependencies"],
   "pinDigests": true,
+  "minimumReleaseAge": "7 days",
   "packageRules": [
     {
       "description": "Chainguard base image: keep the pinned digest fresh (zero-CVE rebuilds). Each bump is a PR the Trivy gate must pass before merge.",
