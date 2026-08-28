@@ -1,0 +1,24 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":dependencyDashboard"
+  ],
+  "labels": ["dependencies"],
+  "pinDigests": true,
+  "packageRules": [
+    {
+      "description": "Chainguard base image: keep the pinned digest fresh (zero-CVE rebuilds). Each bump is a PR the Trivy gate must pass before merge.",
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["cgr.dev/chainguard/node"],
+      "groupName": "chainguard node base",
+      "schedule": ["before 6am on monday"]
+    },
+    {
+      "description": "Batch npm dependency updates into one weekly PR to keep noise down.",
+      "matchManagers": ["npm"],
+      "groupName": "npm dependencies",
+      "schedule": ["before 6am on monday"]
+    }
+  ]
+}

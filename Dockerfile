@@ -6,19 +6,23 @@
 # shares; keep the shape (multi-stage, lockfile install, non-root, exec-form CMD)
 # even if the app grows.
 #
-# Pinned by digest (Chainguard's free tier is :latest-only) for reproducibility
-# and to satisfy Hadolint. Refresh with:
-#   docker buildx imagetools inspect cgr.dev/chainguard/node:latest
-#   docker buildx imagetools inspect cgr.dev/chainguard/node:latest-dev
+# Pinned to the :latest / :latest-dev tag AND its digest (Chainguard's free tier
+# is :latest-only): the tag lets Renovate track the stream, the digest gives
+# reproducibility. Renovate keeps the digest fresh automatically (renovate.json)
+# — each bump is a PR the Trivy scan gates, so the base never silently rots.
+# The `# hadolint ignore=DL3007` lines are deliberate: pinning a mutable tag is
+# safe precisely because the digest is pinned alongside it.
 
 # --- build: install production deps from the committed lockfile (build once).
-FROM cgr.dev/chainguard/node@sha256:87c646948c4ee39b8b2abcb6e6e77008bedc1cbfec41a0c75ddca1a74ec3b691 AS build
+# hadolint ignore=DL3007
+FROM cgr.dev/chainguard/node:latest-dev@sha256:87c646948c4ee39b8b2abcb6e6e77008bedc1cbfec41a0c75ddca1a74ec3b691 AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 
 # --- runtime: minimal Chainguard node, non-root (uid 65532), no shell / package managers.
-FROM cgr.dev/chainguard/node@sha256:3cf2a28e10607bd6758a4e56fbd5580ab9d041f2126e4e79ae50af29f9317f54
+# hadolint ignore=DL3007
+FROM cgr.dev/chainguard/node:latest@sha256:3cf2a28e10607bd6758a4e56fbd5580ab9d041f2126e4e79ae50af29f9317f54
 WORKDIR /app
 COPY --from=build /app/node_modules ./node_modules
 COPY src ./src
