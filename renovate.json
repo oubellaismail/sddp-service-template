@@ -6,6 +6,7 @@
   ],
   "labels": ["dependencies"],
   "pinDigests": true,
+  "prConcurrentLimit": 5,
   "packageRules": [
     {
       "description": "Chainguard base image: keep the pinned digest fresh (zero-CVE rebuilds). Each bump is a PR the Trivy gate must pass. minimumReleaseAge waits out a compromised push even from a trusted vendor; the weekly cadence keeps drift small. (Set to false here if you'd rather take base CVE fixes instantly.)",
@@ -21,6 +22,12 @@
       "groupName": "npm dependencies",
       "minimumReleaseAge": "7 days",
       "schedule": ["before 6am on monday"]
+    },
+    {
+      "description": "GitHub Actions (CI workflows): one grouped PR instead of per-action noise; still 7-day-aged to wait out a compromised action release. No schedule so the initial digest-pinning consolidates promptly.",
+      "matchManagers": ["github-actions"],
+      "groupName": "github actions",
+      "minimumReleaseAge": "7 days"
     }
   ]
 }
