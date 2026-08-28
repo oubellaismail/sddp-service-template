@@ -1,0 +1,26 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":dependencyDashboard"
+  ],
+  "labels": ["dependencies"],
+  "pinDigests": true,
+  "packageRules": [
+    {
+      "description": "Chainguard base image: keep the pinned digest fresh (zero-CVE rebuilds). Each bump is a PR the Trivy gate must pass. minimumReleaseAge waits out a compromised push even from a trusted vendor; the weekly cadence keeps drift small. (Set to false here if you'd rather take base CVE fixes instantly.)",
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["cgr.dev/chainguard/node"],
+      "groupName": "chainguard node base",
+      "minimumReleaseAge": "7 days",
+      "schedule": ["before 6am on monday"]
+    },
+    {
+      "description": "npm deps: wait 7 days before adopting a new release to dodge malicious/compromised fresh publishes; batch into one weekly PR.",
+      "matchManagers": ["npm"],
+      "groupName": "npm dependencies",
+      "minimumReleaseAge": "7 days",
+      "schedule": ["before 6am on monday"]
+    }
+  ]
+}
