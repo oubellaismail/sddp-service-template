@@ -1,8 +1,12 @@
 # Release — sign & promote (runs post-merge). Single image.
 #
-# Nothing to substitute: image name = ghcr.io/<owner>/<repo>, and the config-repo
-# path is derived from the repo name (manifests/<slug>/, slug = repo minus the
-# `sddp-` prefix). Name your repo `sddp-<service>` and it all follows.
+# Almost nothing to substitute: image name = ghcr.io/<owner>/<repo>, and the
+# config-repo path is derived from the repo name (manifests/<slug>/, slug = repo
+# minus any `sddp-` prefix). The one per-project knob is the config repo this
+# service delivers into: it defaults to `sddp-app-config`, and a service in
+# another project sets the repo variable CONFIG_REPO to its project's config repo
+# name (e.g. `demo-config`). Name your repo `<project>-<service>` and the rest
+# follows.
 #
 # On merge to main, the exact image built and scanned on the PR is signed and
 # promoted — never rebuilt. Trust acts happen only here, after the full gate:
@@ -172,7 +176,13 @@ jobs:
     timeout-minutes: 5
     permissions: {} # zero authority over this repo; all writes go via the App token
     env:
-      CONFIG_REPO: ${{ github.repository_owner }}/sddp-app-config
+      # The project config repo this service delivers into. Defaults to
+      # sddp-app-config (the original project) so existing services are unchanged;
+      # a service in another project sets the repo variable CONFIG_REPO to its own
+      # project config repo name (e.g. demo-config). Owner is always this repo's
+      # owner — ADR-005/009: one config repo per project, under the same account.
+      CONFIG_REPO_NAME: ${{ vars.CONFIG_REPO || 'sddp-app-config' }}
+      CONFIG_REPO: ${{ github.repository_owner }}/${{ vars.CONFIG_REPO || 'sddp-app-config' }}
       IMAGE_NAME: ${{ github.event.repository.name }}
       SOURCE_SHA: ${{ needs.sign-promote.outputs.head_sha }}
       DIGEST: ${{ needs.sign-promote.outputs.digest }}
@@ -184,7 +194,7 @@ jobs:
           app-id: ${{ secrets.CONFIG_BOT_APP_ID }}
           private-key: ${{ secrets.CONFIG_BOT_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
-          repositories: sddp-app-config
+          repositories: ${{ env.CONFIG_REPO_NAME }}
 
       - name: Checkout config repo
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
