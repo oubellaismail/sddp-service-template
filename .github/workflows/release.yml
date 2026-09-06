@@ -71,7 +71,7 @@ jobs:
       PROD: registry.digitalocean.com/sddp-registry/${{ github.event.repository.name }}
     steps:
       - name: Log in to staging registry (GHCR)
-        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3.4.0
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -129,7 +129,7 @@ jobs:
           cosign attest --type spdxjson --predicate sbom.spdx.json "$STAGING_REF"
 
       - name: Log in to production registry (DOCR)
-        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3.4.0
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
           registry: registry.digitalocean.com
           username: ${{ secrets.DOCR_TOKEN }} # DOCR uses the API token as both username and password
@@ -197,7 +197,7 @@ jobs:
           repositories: ${{ env.CONFIG_REPO_NAME }}
 
       - name: Checkout config repo
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: ${{ env.CONFIG_REPO }}
           token: ${{ steps.apptoken.outputs.token }}
